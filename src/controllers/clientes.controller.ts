@@ -76,7 +76,28 @@ export async function obtenerCliente(
 
     // Pólizas del cliente
     const polizas = await query(
-      "SELECT * FROM polizas WHERE cliente_id = $1 ORDER BY fecha_vencimiento DESC",
+      `SELECT
+         p.*,
+         COALESCE(doc_count.documentos_count, 0) AS documentos_count,
+         latest_doc.ultimo_documento_id,
+         latest_doc.ultimo_documento_nombre
+       FROM polizas p
+       LEFT JOIN LATERAL (
+         SELECT COUNT(*)::int AS documentos_count
+         FROM documentos_poliza d
+         WHERE d.poliza_id = p.id
+       ) doc_count ON TRUE
+       LEFT JOIN LATERAL (
+         SELECT
+           d.id AS ultimo_documento_id,
+           d.nombre AS ultimo_documento_nombre
+         FROM documentos_poliza d
+         WHERE d.poliza_id = p.id
+         ORDER BY d.created_at DESC
+         LIMIT 1
+       ) latest_doc ON TRUE
+       WHERE p.cliente_id = $1
+       ORDER BY p.fecha_vencimiento DESC`,
       [id]
     );
 

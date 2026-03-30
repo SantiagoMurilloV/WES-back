@@ -71,4 +71,80 @@ router.get("/kpis", async (_req: AuthRequest, res: Response, next: NextFunction)
   }
 });
 
+// ── GET /dashboard/reportes ───────────────────────────────────────────────
+// Datos reales para la página de Reportes
+router.get("/reportes", async (_req, res: Response, next: NextFunction) => {
+  try {
+    const [porAseguradora, porEstado, proximosMeses, comisionesPorAsesor] = await Promise.all([
+
+      // Pólizas activas agrupadas por aseguradora
+      query<{ aseguradora: string; total: string }>(`
+        SELECT aseguradora, COUNT(*) AS total
+        FROM polizas
+        WHERE estado = 'activo'
+        GROUP BY aseguradora
+        ORDER BY total DESC
+      `),
+
+      // Distribución de estados de pólizas
+      query<{ estado: string; total: string }>(`
+        SELECT estado, COUNT(*) AS total
+        FROM polizas
+        GROUP BY estado
+        ORDER BY total DESC
+      `),
+
+      // Pólizas que vencen en los próximos 6 meses (agrupadas por mes)
+      query<{ mes: string; total: string }>(`
+        SELECT
+          TO_CHAR(fecha_vencimiento, 'Mon YYYY') AS mes,
+          COUNT(*) AS total
+        FROM polizas
+        WHERE estado IN ('activo', 'pendiente')
+          AND fecha_vencimiento BETWEEN NOW() AND NOW() + INTERVAL '6 months'
+        GROUP BY DATE_TRUNC('month', fecha_vencimiento), TO_CHAR(fecha_vencimiento, 'Mon YYYY')
+        ORDER BY DATE_TRUNC('month', fecha_vencimiento) ASC
+      `),
+
+      // Comisiones por asesor (de liquidaciones completadas)
+      query<{ asesor_nombre: string; total_items: string; total_monto: string }>(`
+        SELECT
+          a.nombre AS asesor_nombre,
+          COUNT(li.id) AS total_items,
+          COALESCE(SUM(li.monto), 0) AS total_monto
+        FROM asesores a
+        LEFT JOIN liquidacion_items li ON li.asesor_id = a.id
+        WHERE a.activo = TRUE
+        GROUP BY a.id, a.nombre
+        ORDER BY a.nombre
+      `),
+    ]);
+
+    res.json({
+      ok: true,
+      data: {
+        polizas_por_aseguradora: porAseguradora.map((r) => ({
+          aseguradora: r.aseguradora,
+          total: parseInt(r.total),
+        })),
+        estados_polizas: porEstado.map((r) => ({
+          estado: r.estado,
+          total: parseInt(r.total),
+        })),
+        proximas_vencer_por_mes: proximosMeses.map((r) => ({
+          mes: r.mes,
+          total: parseInt(r.total),
+        })),
+        comisiones_por_asesor: comisionesPorAsesor.map((r) => ({
+          asesor: r.asesor_nombre,
+          items: parseInt(r.total_items),
+          monto: parseFloat(r.total_monto),
+        })),
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;

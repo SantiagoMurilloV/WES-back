@@ -2,6 +2,7 @@
 //  WES Backend — Entrada principal
 // ══════════════════════════════════════════
 import "dotenv/config";
+import path from "path";
 import express from "express";
 import helmet from "helmet";
 import cors from "cors";
@@ -21,9 +22,12 @@ app.use(cors({
 }));
 
 // ── Parsers ────────────────────────────────
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 app.use(cookieParser());
+
+// ── Archivos estáticos (PDFs/uploads) ──────
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 // ── Rutas ──────────────────────────────────
 app.use("/api", routes);

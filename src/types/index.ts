@@ -55,6 +55,9 @@ export interface Poliza {
   valor_prima: number | null;
   estado: EstadoPoliza;
   notas: string | null;
+  documentos_count?: number;
+  ultimo_documento_id?: string | null;
+  ultimo_documento_nombre?: string | null;
   created_at: string;
   updated_at: string;
 }

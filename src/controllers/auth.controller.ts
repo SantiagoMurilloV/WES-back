@@ -3,7 +3,7 @@
 // ══════════════════════════════════════════
 import { Request, Response, NextFunction } from "express";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
+import jwt, { type SignOptions } from "jsonwebtoken";
 import { env } from "../config/env";
 import { AppError } from "../middleware/errorHandler";
 import { JwtPayload } from "../types";
@@ -18,15 +18,17 @@ const ADMIN_USER = {
 };
 
 function signAccess(payload: Omit<JwtPayload, "iat" | "exp">): string {
-  return jwt.sign(payload, env.JWT_SECRET, {
-    expiresIn: env.JWT_EXPIRES_IN as string,
-  });
+  const options: SignOptions = {
+    expiresIn: env.JWT_EXPIRES_IN as SignOptions["expiresIn"],
+  };
+  return jwt.sign(payload, env.JWT_SECRET, options);
 }
 
 function signRefresh(payload: Omit<JwtPayload, "iat" | "exp">): string {
-  return jwt.sign(payload, env.JWT_REFRESH_SECRET, {
-    expiresIn: env.JWT_REFRESH_EXPIRES_IN as string,
-  });
+  const options: SignOptions = {
+    expiresIn: env.JWT_REFRESH_EXPIRES_IN as SignOptions["expiresIn"],
+  };
+  return jwt.sign(payload, env.JWT_REFRESH_SECRET, options);
 }
 
 // POST /api/auth/login

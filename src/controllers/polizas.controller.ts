@@ -52,9 +52,29 @@ export async function listarPolizas(
     const whereClause = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
     const sql = `
-      SELECT p.*, c.nombre AS cliente_nombre, c.telefono AS cliente_telefono
+      SELECT
+        p.*,
+        c.nombre AS cliente_nombre,
+        c.telefono AS cliente_telefono,
+        COALESCE(doc_count.documentos_count, 0) AS documentos_count,
+        latest_doc.ultimo_documento_id,
+        latest_doc.ultimo_documento_nombre
       FROM polizas p
       JOIN clientes c ON c.id = p.cliente_id
+      LEFT JOIN LATERAL (
+        SELECT COUNT(*)::int AS documentos_count
+        FROM documentos_poliza d
+        WHERE d.poliza_id = p.id
+      ) doc_count ON TRUE
+      LEFT JOIN LATERAL (
+        SELECT
+          d.id AS ultimo_documento_id,
+          d.nombre AS ultimo_documento_nombre
+        FROM documentos_poliza d
+        WHERE d.poliza_id = p.id
+        ORDER BY d.created_at DESC
+        LIMIT 1
+      ) latest_doc ON TRUE
       ${whereClause}
       ORDER BY p.fecha_vencimiento ASC
       LIMIT $${params.length + 1} OFFSET $${params.length + 2}
